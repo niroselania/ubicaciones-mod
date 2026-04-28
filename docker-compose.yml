@@ -4,8 +4,8 @@ services:
     container_name: patagonia-ubicaciones
     working_dir: /app
     volumes:
-      - /mnt/SERVER-TFILES/PORTAINER/patagonia-html-app:/app
-      - /mnt/SERVER-TFILES/PORTAINER/patagonia-html:/data
+      - ${UBICACIONES_CODE_DIR}:/app
+      - ${DATA_DIR}:/data
     command: >
       sh -lc "pip install --no-cache-dir -r requirements.txt
       && python /app/completar_ubicaciones.py --watch --dir /data --interval-s 3"
@@ -17,12 +17,13 @@ services:
     working_dir: /app
     environment:
       - DATA_DIR=/data
+      - ELEMENTOS_SOURCE_URL=${ELEMENTOS_SOURCE_URL}
     volumes:
-      - /mnt/SERVER-TFILES/PORTAINER/patagonia-ubicaciones:/app
-      - /mnt/SERVER-TFILES/PORTAINER/patagonia-html:/data
+      - ${HTML_CODE_DIR}:/app
+      - ${DATA_DIR}:/data
     command: >
       sh -lc "pip install --no-cache-dir -r requirements.txt
       && uvicorn web_server:app --host 0.0.0.0 --port 8000"
     ports:
-      - "8092:8000"
+      - "${WEB_PORT:-8092}:8000"
     restart: unless-stopped
