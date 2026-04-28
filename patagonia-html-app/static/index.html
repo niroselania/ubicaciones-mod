@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Patagonia - Completar ubicaciones</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0b1220;
+        --card: rgba(255, 255, 255, 0.06);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.7);
+        --border: rgba(255, 255, 255, 0.14);
+        --primary: #7dd3fc;
+        --primaryText: #07121f;
+        --danger: #fb7185;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f6f7fb;
+          --card: rgba(0, 0, 0, 0.04);
+          --text: rgba(0, 0, 0, 0.9);
+          --muted: rgba(0, 0, 0, 0.62);
+          --border: rgba(0, 0, 0, 0.12);
+          --primary: #0ea5e9;
+          --primaryText: #ffffff;
+          --danger: #e11d48;
+        }
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans",
+          sans-serif;
+        background: radial-gradient(1000px 600px at 20% 10%, rgba(125, 211, 252, 0.25), transparent 60%),
+          radial-gradient(900px 500px at 90% 20%, rgba(251, 113, 133, 0.18), transparent 55%), var(--bg);
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 28px 18px 44px;
+      }
+      .title {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        margin: 0 0 8px;
+      }
+      .sub {
+        margin: 0 0 18px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      .card {
+        border: 1px solid var(--border);
+        background: var(--card);
+        border-radius: 14px;
+        padding: 16px;
+        backdrop-filter: blur(8px);
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      input[type="file"] {
+        flex: 1;
+        min-width: 240px;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text);
+      }
+      button,
+      a.btn {
+        appearance: none;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 650;
+        letter-spacing: 0.2px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      button.primary {
+        background: var(--primary);
+        color: var(--primaryText);
+        border-color: transparent;
+      }
+      button:disabled,
+      a.btn[aria-disabled="true"] {
+        opacity: 0.55;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+      .status {
+        margin-top: 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 13px;
+        color: var(--muted);
+        white-space: pre-wrap;
+      }
+      .error {
+        color: var(--danger);
+      }
+      .hint {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .section-title {
+        margin: 6px 0 10px;
+        font-size: 14px;
+        color: var(--muted);
+        letter-spacing: 0.2px;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .toast-wrap {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 9999;
+      }
+      .toast {
+        min-width: 260px;
+        max-width: 420px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        padding: 10px 12px;
+        font-size: 13px;
+        line-height: 1.35;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.22);
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .toast.ok {
+        border-color: rgba(34, 197, 94, 0.4);
+      }
+      .toast.err {
+        border-color: rgba(225, 29, 72, 0.55);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="toastWrap" class="toast-wrap"></div>
+    <div class="wrap">
+      <div class="title">Completar ubicaciones desde elementos.xlsx</div>
+      <p class="sub">
+        Subí un Excel con columnas <span class="badge">codigo</span> <span class="badge">color</span>
+        <span class="badge">talle</span> <span class="badge">ubicacion</span>. Cuando termine, se habilita la descarga.
+      </p>
+
+      <div class="card">
+        <div class="section-title">1) Actualizar base de elementos</div>
+        <div class="row">
+          <input id="elementosFile" type="file" accept=".xlsx" />
+          <button id="elementosUploadBtn">Upload elementos.xlsx</button>
+          <a id="elementosDownloadBtn" class="btn" href="/api/download-elementos">Descargar elementos actualizado</a>
+        </div>
+        <div id="elementosStatus" class="status"></div>
+
+        <div class="section-title" style="margin-top: 16px">2) Procesar planilla de ubicaciones</div>
+        <div class="row">
+          <input id="file" type="file" accept=".xlsx" />
+          <button id="uploadBtn" class="primary">Upload</button>
+          <a id="downloadBtn" class="btn" href="#" aria-disabled="true">Download</a>
+        </div>
+        <div id="status" class="status"></div>
+        <div class="hint">
+          El servidor usa <b>elementos.xlsx</b> desde la carpeta de planillas. Si no coincide por Código, intenta por Item
+          (cuando tu “CODIGO” es el Item).
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const $file = document.getElementById("file");
+      const $uploadBtn = document.getElementById("uploadBtn");
+      const $downloadBtn = document.getElementById("downloadBtn");
+      const $status = document.getElementById("status");
+      const $elementosFile = document.getElementById("elementosFile");
+      const $elementosUploadBtn = document.getElementById("elementosUploadBtn");
+      const $elementosStatus = document.getElementById("elementosStatus");
+      const $toastWrap = document.getElementById("toastWrap");
+
+      let pollTimer = null;
+
+      function setStatus(text, isError = false) {
+        $status.textContent = text;
+        $status.classList.toggle("error", isError);
+      }
+
+      function setDownload(url) {
+        if (!url) {
+          $downloadBtn.setAttribute("aria-disabled", "true");
+          $downloadBtn.href = "#";
+          return;
+        }
+        $downloadBtn.removeAttribute("aria-disabled");
+        $downloadBtn.href = url;
+      }
+
+      function setElementosStatus(text, isError = false) {
+        $elementosStatus.textContent = text;
+        $elementosStatus.classList.toggle("error", isError);
+      }
+
+      function toast(message, type = "ok", timeoutMs = 3800) {
+        const el = document.createElement("div");
+        el.className = `toast ${type}`;
+        el.textContent = message;
+        $toastWrap.appendChild(el);
+        requestAnimationFrame(() => el.classList.add("show"));
+        setTimeout(() => {
+          el.classList.remove("show");
+          setTimeout(() => el.remove(), 250);
+        }, timeoutMs);
+      }
+
+      async function uploadElementos() {
+        if (!$elementosFile.files || !$elementosFile.files[0]) {
+          setElementosStatus("Elegí el nuevo elementos.xlsx", true);
+          toast("Elegí el archivo elementos.xlsx", "err");
+          return;
+        }
+        $elementosUploadBtn.disabled = true;
+        setElementosStatus("Subiendo elementos.xlsx...");
+
+        const fd = new FormData();
+        fd.append("file", $elementosFile.files[0]);
+
+        const resp = await fetch("/api/upload-elementos", { method: "POST", body: fd });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          setElementosStatus(`Error actualizando elementos.xlsx: ${txt}`, true);
+          toast("Error actualizando elementos.xlsx", "err", 5000);
+          $elementosUploadBtn.disabled = false;
+          return;
+        }
+
+        const data = await resp.json();
+        setElementosStatus(data.message || "elementos.xlsx actualizado");
+        toast("elementos.xlsx actualizado correctamente", "ok");
+        $elementosUploadBtn.disabled = false;
+      }
+
+      async function upload() {
+        if (!$file.files || !$file.files[0]) {
+          setStatus("Elegí un .xlsx primero.", true);
+          toast("Elegí una planilla .xlsx", "err");
+          return;
+        }
+
+        setDownload(null);
+        setStatus("Subiendo archivo...");
+        $uploadBtn.disabled = true;
+
+        const fd = new FormData();
+        fd.append("file", $file.files[0]);
+
+        const resp = await fetch("/api/upload", { method: "POST", body: fd });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          setStatus(`Error upload: ${txt}`, true);
+          toast("Error al subir planilla", "err", 5000);
+          $uploadBtn.disabled = false;
+          return;
+        }
+
+        const { jobId } = await resp.json();
+        setStatus(`Job: ${jobId}\nProcesando...`);
+        toast("Planilla subida. Procesando...", "ok", 2500);
+
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(() => poll(jobId), 1000);
+      }
+
+      async function poll(jobId) {
+        const resp = await fetch(`/api/status/${jobId}`);
+        if (!resp.ok) {
+          setStatus("Error consultando estado.", true);
+          toast("Error consultando estado del job", "err", 5000);
+          clearInterval(pollTimer);
+          $uploadBtn.disabled = false;
+          return;
+        }
+
+        const data = await resp.json();
+        if (data.status === "done") {
+          setStatus(`Listo.\nJob: ${jobId}`);
+          setDownload(data.downloadUrl);
+          toast("Planilla lista para descargar", "ok");
+          clearInterval(pollTimer);
+          $uploadBtn.disabled = false;
+          return;
+        }
+        if (data.status === "error") {
+          setStatus(`Error procesando:\n${data.error || "desconocido"}`, true);
+          toast("Error procesando planilla", "err", 5000);
+          clearInterval(pollTimer);
+          $uploadBtn.disabled = false;
+          return;
+        }
+
+        setStatus(`Job: ${jobId}\nEstado: ${data.status}`);
+      }
+
+      $elementosUploadBtn.addEventListener("click", () => uploadElementos().catch((e) => setElementosStatus(String(e), true)));
+      $uploadBtn.addEventListener("click", () => upload().catch((e) => setStatus(String(e), true)));
+    </script>
+  </body>
+</html>
+
