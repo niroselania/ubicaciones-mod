@@ -48,6 +48,8 @@ def _pick_column(cols: list[str], want: str) -> str:
     # heurísticas
     if want == "codigo":
         for c, n in norm_map.items():
+            if n == "sku" or n.startswith("sku ") or n.endswith(" sku") or " sku" in f" {n} ":
+                return c
             if "cod" in n:
                 return c
     if want == "ubicacion":

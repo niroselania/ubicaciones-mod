@@ -27,6 +27,7 @@ class Job:
     status: str  # queued|running|done|error
     error: str | None
     output_path: Path | None
+    original_filename: str | None
     created_at: float
 
 
@@ -89,13 +90,31 @@ def _process_job(job_id: str, in_path: Path) -> None:
         job.status = "done"
         job.output_path = out
         _job_set(job)
-    except Exception as e:
+    except BaseException as e:
         job.status = "error"
         job.error = str(e)
         _job_set(job)
 
 
 app = FastAPI()
+
+def _safe_stem(filename: str) -> str:
+    """
+    Devuelve un stem "seguro" para usar en nombre de archivo.
+    (No necesita ser perfecto: sólo evitar caracteres raros / path traversal.)
+    """
+    name = (filename or "").strip().replace("\\", "/").split("/")[-1]
+    stem = Path(name).stem.strip()
+    if not stem:
+        return "ubicaciones"
+    out = []
+    for ch in stem:
+        if ch.isalnum() or ch in (" ", "-", "_"):
+            out.append(ch)
+        else:
+            out.append("_")
+    stem2 = "".join(out).strip().replace(" ", "_")
+    return stem2[:80] or "ubicaciones"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -130,10 +149,18 @@ async def upload(file: UploadFile = File(...)) -> dict[str, str]:
         raise HTTPException(status_code=400, detail="Subí un archivo .xlsx")
 
     job_id = uuid.uuid4().hex
-    job = Job(id=job_id, status="queued", error=None, output_path=None, created_at=time.time())
+    job = Job(
+        id=job_id,
+        status="queued",
+        error=None,
+        output_path=None,
+        original_filename=file.filename,
+        created_at=time.time(),
+    )
     _job_set(job)
 
-    in_path = JOBS_DIR / f"{job_id}_input.xlsx"
+    safe = _safe_stem(file.filename)
+    in_path = JOBS_DIR / f"{job_id}__{safe}.xlsx"
     data = await file.read()
     in_path.write_bytes(data)
 
@@ -186,8 +213,11 @@ def download(job_id: str):
     if job.status != "done" or not job.output_path or not job.output_path.exists():
         raise HTTPException(status_code=409, detail="Todavía no está listo")
 
+    # Intentamos respetar el nombre original del archivo subido.
+    safe = _safe_stem(job.original_filename or "")
+    download_name = f"{safe}_con_ubicacion.xlsx"
     return FileResponse(
         path=str(job.output_path),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename="ubicaciones_con_ubicacion.xlsx",
+        filename=download_name,
     )
