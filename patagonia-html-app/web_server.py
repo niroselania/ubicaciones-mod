@@ -15,7 +15,8 @@ from openpyxl.utils.exceptions import InvalidFileException
 from completar_ubicaciones import BASE_DIR as _SCRIPT_BASE_DIR
 
 
-DATA_DIR = Path(os.environ.get("DATA_DIR", str(_SCRIPT_BASE_DIR))).resolve()
+_default_data_dir = _SCRIPT_BASE_DIR / "data"
+DATA_DIR = Path(os.environ.get("DATA_DIR", str(_default_data_dir if _default_data_dir.exists() else _SCRIPT_BASE_DIR))).resolve()
 JOBS_DIR = DATA_DIR / "_jobs"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -129,11 +130,22 @@ async def download_elementos():
     Descarga la planilla de elementos desde un servicio externo y la devuelve como attachment.
     Configurable por env var ELEMENTOS_SOURCE_URL.
     """
+    local_path = _elementos_path()
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
+        # Que falle rápido si el host externo no responde (si no, el navegador queda "colgado").
+        timeout = httpx.Timeout(15.0, connect=3.0)
+        async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
             r = await client.get(ELEMENTOS_SOURCE_URL)
             r.raise_for_status()
     except httpx.HTTPError as e:
+        # Fallback: si el servicio externo está caído, devolvemos el elementos.xlsx local
+        # (por ejemplo, el último subido vía /api/upload-elementos).
+        if local_path.exists():
+            return FileResponse(
+                path=str(local_path),
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename="elementos.xlsx",
+            )
         raise HTTPException(status_code=502, detail=f"No pude descargar elementos: {e}") from e
 
     media_type = r.headers.get("content-type") or "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
